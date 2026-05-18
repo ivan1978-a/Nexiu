@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard de Reclutamiento — Abril/Mayo 2026</title>
+  <title>Dashboard de Reclutamiento — LAFA / Nexiu</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
   <style>
@@ -213,15 +213,82 @@
       color: var(--muted);
       margin-bottom: 14px;
     }
+
+    /* TABS */
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 10px 22px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: -1px;
+      transition: color .2s, border-color .2s;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* DETALLE TABLES */
+    .week-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .week-table th {
+      text-transform: uppercase; letter-spacing: .07em; font-size: 10px;
+      color: var(--muted); font-weight: 600; padding: 7px 10px;
+      text-align: right; border-bottom: 1px solid var(--border);
+    }
+    .week-table th:first-child, .week-table th:nth-child(2) { text-align: left; }
+    .week-table td {
+      padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right;
+    }
+    .week-table td:first-child, .week-table td:nth-child(2) { text-align: left; color: var(--text); }
+    .week-table .sum-row td { font-weight: 700; background: var(--surface2); color: #fff; }
+    .rate-good { color: var(--success); font-weight: 700; }
+    .rate-warn { color: var(--warning); font-weight: 700; }
+    .rate-bad  { color: var(--danger);  font-weight: 700; }
+
+    .backup-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .backup-tbl th {
+      text-transform: uppercase; font-size: 10px; color: var(--muted);
+      font-weight: 600; letter-spacing: .07em; padding: 7px 10px;
+      text-align: left; border-bottom: 1px solid var(--border);
+    }
+    .backup-tbl td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+    .backup-tbl tr:hover td { background: var(--surface2); }
+    .backup-scroll { max-height: 420px; overflow-y: auto; }
+
+    .week-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .week-chip {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 4px 14px; font-size: 12px;
+      color: var(--muted); cursor: pointer; transition: all .2s;
+    }
+    .week-chip.active { background: var(--accent); border-color: var(--accent); color: #fff; }
   </style>
 </head>
 <body>
 
 <header>
   <h1>Dashboard de Reclutamiento</h1>
-  <p>Funnel HR OS · Canal Nexiu · Generado el 07/05/2026</p>
-  <span class="badge">01 Abr — 07 May 2026 &nbsp;·&nbsp; 5 semanas</span>
+  <p>Funnel HR OS · Canal Nexiu · Datos en vivo desde Supabase</p>
+  <span class="badge" id="header-periodo">Cargando...</span>
 </header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('executive',this)">Executive</button>
+  <button class="tab-btn" onclick="switchTab('detalle',this)">Detalle Asistencia</button>
+</div>
+
+<div id="tab-executive" class="tab-content active">
 
 <!-- KPI CARDS -->
 <div class="kpi-grid">
@@ -505,6 +572,60 @@
   </div>
 </div>
 
+</div><!-- /tab-executive -->
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- TAB: DETALLE ASISTENCIA                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div id="tab-detalle" class="tab-content">
+
+  <!-- WTD COMPARISON CHART -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Asistencia acumulada week-to-date vs semanas previas</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      Cada línea muestra la asistencia acumulada de lunes al día actual. La semana actual se resalta en cian.
+    </div>
+    <div class="chart-wrap">
+      <canvas id="wtdChart" height="90"></canvas>
+    </div>
+  </div>
+
+  <!-- DAY-BY-DAY TABLE + DAY COMPARISON (side by side) -->
+  <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Asistencia diaria por semana</div>
+      <div id="weekly-day-table"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Comparativa mismo día · últimas semanas</div>
+      <div id="day-comparison"></div>
+    </div>
+  </div>
+
+  <!-- REAGENDADOS -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Asistencia efectiva de reagendados</div>
+    <div id="reagendados-section"></div>
+  </div>
+
+  <!-- BACKUP LIST -->
+  <div class="card grid-1" style="margin-bottom:16px">
+    <div class="card-title">Backup: detalle de presentes por semana</div>
+    <div class="week-chips" id="backup-chips"></div>
+    <div class="backup-scroll">
+      <table class="backup-tbl">
+        <thead><tr>
+          <th>#</th><th>ID</th><th>Candidato</th><th>Fecha</th>
+          <th>Canal</th><th>Entrevistador/a</th><th>Estado entrevista</th>
+        </tr></thead>
+        <tbody id="backup-body"></tbody>
+      </table>
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)" id="backup-count"></div>
+  </div>
+
+</div><!-- /tab-detalle -->
+
 <script>
   // ── CONFIG ──────────────────────────────────────────────────────────
   const SUPABASE_URL = 'https://ctbkipgraypohrdeoggv.supabase.co';
@@ -729,6 +850,228 @@
     });
   }
 
+  // ── TAB SWITCHING ────────────────────────────────────────────────────
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'detalle' && window._allRows) renderDetalleAsistencia(window._allRows);
+  }
+
+  // ── HELPERS (DETALLE) ────────────────────────────────────────────────
+  function parseDateLocal(s) {
+    const [y,m,d] = s.split('-').map(Number);
+    return new Date(y, m-1, d);
+  }
+  const DOW_ORDER = d => (parseDateLocal(d).getDay() + 6) % 7; // 0=Mon
+  const DOW_SHORT = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const DOW_FULL  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+  // ── DETALLE ASISTENCIA ───────────────────────────────────────────────
+  function renderDetalleAsistencia(rows) {
+    // Build day-level data
+    const dayData = {};
+    rows.forEach(r => {
+      if (!r.inicio) return;
+      const d = r.inicio.slice(0, 10);
+      if (!dayData[d]) dayData[d] = { total: 0, presentes: 0, rows: [] };
+      dayData[d].total++;
+      if (r.asistencia === 'Realizada') {
+        dayData[d].presentes++;
+        dayData[d].rows.push(r);
+      }
+    });
+
+    // Group by ISO week
+    const weekDays = {};
+    Object.keys(dayData).sort().forEach(d => {
+      const w = isoWeek(d);
+      if (!weekDays[w]) weekDays[w] = [];
+      weekDays[w].push(d);
+    });
+
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const currentWeek = isoWeek(todayStr);
+    const todayDow = (today.getDay() + 6) % 7; // 0=Mon
+    const allWeeks = Object.keys(weekDays).map(Number).sort((a,b)=>a-b);
+
+    window._weekDayData = { weekDays, dayData, allWeeks, rows };
+
+    // ── WTD CHART ──
+    const xLabels = DOW_SHORT.slice(0, Math.max(todayDow + 1, 1));
+    const weeksForChart = allWeeks.slice(-5);
+    const WK_COLORS = ['#475569','#64748b','#a78bfa','#f59e0b',COLORS.cyan];
+
+    const wtdDatasets = weeksForChart.map((w, i) => {
+      const days = (weekDays[w] || []).sort();
+      let cum = 0;
+      const data = [];
+      for (let dow = 0; dow < xLabels.length; dow++) {
+        if (w === currentWeek && dow > todayDow) {
+          data.push(null);
+        } else {
+          const dayDate = days.find(d => DOW_ORDER(d) === dow);
+          cum += dayDate ? dayData[dayDate].presentes : 0;
+          data.push(cum);
+        }
+      }
+      const isCurr = w === currentWeek;
+      return {
+        label: `S${w}${isCurr ? ' (actual)' : ''}`,
+        data,
+        borderColor: isCurr ? COLORS.cyan : WK_COLORS[i % WK_COLORS.length],
+        backgroundColor: 'transparent',
+        borderWidth: isCurr ? 3 : 1.5,
+        pointRadius: isCurr ? 5 : 3,
+        tension: 0.2,
+        borderDash: isCurr ? [] : [5, 3],
+        spanGaps: false,
+      };
+    });
+
+    makeChart('wtdChart', {
+      type: 'line',
+      data: { labels: xLabels, datasets: wtdDatasets },
+      options: {
+        plugins: {
+          legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+          datalabels: { display: false },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} presentes acum.` } }
+        },
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: '#2e334d' }, min: 0, ticks: { stepSize: 5 } }
+        }
+      }
+    });
+
+    // ── DAY-BY-DAY TABLE ──
+    const tableEl = document.getElementById('weekly-day-table');
+    let html = '';
+    allWeeks.forEach(w => {
+      const days = (weekDays[w] || []).sort();
+      const wTotal = days.reduce((s,d) => s + dayData[d].total, 0);
+      const wPres  = days.reduce((s,d) => s + dayData[d].presentes, 0);
+      const wRate  = wTotal ? Math.round(wPres / wTotal * 100) : 0;
+      const d0 = days[0], dN = days[days.length-1];
+      html += `<div style="margin-bottom:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--accent2);margin-bottom:8px">
+          S${w} &nbsp;·&nbsp; ${d0 ? d0.slice(5).replace('-','/') : ''} – ${dN ? dN.slice(5).replace('-','/') : ''}
+        </div>
+        <table class="week-table">
+          <thead><tr><th>Día</th><th>Fecha</th><th>Prog.</th><th>Pres.</th><th>No-show</th><th>Tasa</th></tr></thead>
+          <tbody>`;
+      days.forEach(d => {
+        const dd = dayData[d];
+        const rate = dd.total ? Math.round(dd.presentes / dd.total * 100) : 0;
+        const cls = rate >= 20 ? 'rate-good' : rate >= 10 ? 'rate-warn' : 'rate-bad';
+        const dow = DOW_SHORT[(parseDateLocal(d).getDay())];
+        html += `<tr>
+          <td>${dow}</td>
+          <td>${d.slice(5).replace('-','/')}</td>
+          <td style="color:var(--muted)">${dd.total}</td>
+          <td style="color:var(--accent2);font-weight:700">${dd.presentes}</td>
+          <td style="color:var(--danger)">${dd.total - dd.presentes}</td>
+          <td class="${cls}">${rate}%</td>
+        </tr>`;
+      });
+      html += `</tbody>
+          <tfoot><tr class="sum-row">
+            <td colspan="2">Total semana</td>
+            <td>${wTotal}</td><td>${wPres}</td>
+            <td>${wTotal - wPres}</td>
+            <td>${wRate}%</td>
+          </tr></tfoot>
+        </table></div>`;
+    });
+    tableEl.innerHTML = html;
+
+    // ── DAY COMPARISON ──
+    const compEl = document.getElementById('day-comparison');
+    let compHtml = '';
+    // For each day of week that has passed (across any week)
+    const dowsPresent = [...new Set(
+      Object.keys(dayData)
+        .filter(d => parseDateLocal(d) <= today)
+        .map(d => DOW_ORDER(d))
+    )].sort((a,b)=>a-b);
+
+    dowsPresent.forEach(dow => {
+      const datesForDow = Object.keys(dayData)
+        .filter(d => DOW_ORDER(d) === dow && parseDateLocal(d) <= today)
+        .sort().slice(-5);
+      compHtml += `<div style="margin-bottom:18px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px">${DOW_FULL[dow]}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">`;
+      datesForDow.forEach(d => {
+        const dd = dayData[d];
+        const rate = dd.total ? Math.round(dd.presentes / dd.total * 100) : 0;
+        const w = isoWeek(d);
+        const isCurr = w === currentWeek;
+        const rateColor = rate >= 20 ? 'var(--success)' : rate >= 10 ? 'var(--warning)' : 'var(--danger)';
+        compHtml += `<div style="background:var(--surface2);border:1px solid ${isCurr?'var(--accent2)':'var(--border)'};border-radius:8px;padding:10px 14px;min-width:85px">
+          <div style="font-size:10px;color:${isCurr?'var(--accent2)':'var(--muted)'};font-weight:700;margin-bottom:4px">S${w} &nbsp;${d.slice(5).replace('-','/')}</div>
+          <div style="font-size:22px;font-weight:800;color:#fff">${dd.presentes}</div>
+          <div style="font-size:10px;color:${rateColor};margin-top:2px">${rate}% de ${dd.total}</div>
+        </div>`;
+      });
+      compHtml += `</div></div>`;
+    });
+    compEl.innerHTML = compHtml || '<p style="color:var(--muted);font-size:13px">Sin datos.</p>';
+
+    // ── REAGENDADOS ──
+    document.getElementById('reagendados-section').innerHTML = `
+      <div style="background:var(--surface2);border-radius:8px;padding:16px;display:flex;align-items:flex-start;gap:14px">
+        <div style="font-size:22px;flex-shrink:0">⚠️</div>
+        <div>
+          <div style="font-weight:700;color:var(--warning);margin-bottom:6px">Campo pendiente de migrar</div>
+          <div style="font-size:13px;color:var(--muted);line-height:1.7">
+            El Excel contiene la columna <strong style="color:var(--text)">"Reagenda entrevista"</strong> pero no fue incluida en la tabla Supabase ni en el script de carga.<br/>
+            Para habilitar este análisis: (1) agrega la columna <code>reagenda_entrevista text</code> en Supabase SQL, (2) el script ya mapea la columna automáticamente en la próxima carga.
+          </div>
+        </div>
+      </div>`;
+
+    // ── BACKUP LIST ──
+    const chipsEl = document.getElementById('backup-chips');
+    chipsEl.innerHTML = allWeeks.map((w, i) =>
+      `<span class="week-chip${i === allWeeks.length-1 ? ' active' : ''}" onclick="selectBackupWeek(${w},this)">S${w}</span>`
+    ).join('');
+    renderBackupList(allWeeks[allWeeks.length-1]);
+  }
+
+  function renderBackupList(week) {
+    const { weekDays, dayData } = window._weekDayData;
+    const days = weekDays[week] || [];
+    const presentes = days.flatMap(d => dayData[d].rows)
+      .sort((a,b) => (a.inicio||'').localeCompare(b.inicio||''));
+    const tbody = document.getElementById('backup-body');
+    document.getElementById('backup-count').textContent = `${presentes.length} presentes en semana ${week}`;
+    tbody.innerHTML = presentes.length ? presentes.map((r, i) => {
+      const fecha = r.inicio ? r.inicio.slice(5).replace('-','/') : '—';
+      const est = r.estado_entrevista || '—';
+      const estColor = est === 'Aprobado' ? 'var(--success)' : est === 'No aprobado' ? 'var(--danger)' : 'var(--muted)';
+      return `<tr>
+        <td style="color:var(--muted)">${i+1}</td>
+        <td style="color:var(--muted);font-size:11px">${r.id_candidato||'—'}</td>
+        <td style="font-weight:600;color:#fff">${r.candidato||'—'}</td>
+        <td>${fecha}</td>
+        <td style="color:var(--muted)">${r.canal||'—'}</td>
+        <td style="color:var(--muted)">${r.entrevistador||'—'}</td>
+        <td style="color:${estColor}">${est}</td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Sin presentes esta semana</td></tr>`;
+  }
+
+  window.selectBackupWeek = function(week, el) {
+    document.querySelectorAll('.week-chip').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+    renderBackupList(week);
+  };
+
   // ── FETCH + MAIN ─────────────────────────────────────────────────────
   async function fetchAll() {
     let all = [], from = 0;
@@ -747,6 +1090,16 @@
 
   async function main() {
     const rows = await fetchAll();
+    window._allRows = rows;
+
+    // Update header badge with date range
+    if (rows.length) {
+      const dates = rows.map(r => r.inicio).filter(Boolean).sort();
+      const fmt = d => d ? d.slice(5).split('-').reverse().join('/') + '/' + d.slice(0,4) : '?';
+      const el = document.getElementById('header-periodo');
+      if (el) el.textContent = `${fmt(dates[0])} — ${fmt(dates[dates.length-1])}  ·  ${rows.length.toLocaleString()} candidatos`;
+    }
+
     updateKPIs(rows);
     renderFunnel(rows);
     renderCharts(rows);
