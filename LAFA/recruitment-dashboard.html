@@ -1021,7 +1021,7 @@
         },
         scales: {
           x: { grid: { display: false } },
-          y: { grid: { color: '#2e334d' }, min: 0, ticks: { stepSize: 10 } },
+          y: { grid: { color: '#2e334d' }, min: 0, suggestedMax: Math.ceil(Math.max(goalPresentes, ...wtdBarData.filter(Boolean), 0) * 1.2 / 10) * 10 },
           y2: {
             position: 'right',
             min: 0,
