@@ -1015,20 +1015,6 @@
               formatter: v => v != null ? `${v} (20%)` : ''
             },
           },
-          // Goal rate (right axis) — dashed line across all weeks
-          {
-            label: 'Meta 20%',
-            data: weeksForChart.map(() => goalRate),
-            type: 'line',
-            yAxisID: 'y2',
-            borderColor: '#22c55e',
-            backgroundColor: 'transparent',
-            borderWidth: 1.5,
-            borderDash: [6, 4],
-            pointRadius: 0,
-            spanGaps: true,
-            datalabels: { display: false },
-          }
         ]
       },
       options: {
