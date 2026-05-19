@@ -1,0 +1,36 @@
+name: Sync Funnel → Supabase
+
+on:
+  schedule:
+    - cron: '0 13 * * *'   # 8:00 am México (CDT = UTC-5)
+    - cron: '0 1 * * *'    # 8:00 pm México (CDT = UTC-5)
+  workflow_dispatch:        # permite lanzarlo manualmente desde GitHub
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install openpyxl requests
+
+      - name: Download Google Sheet (Funnel)
+        run: |
+          curl -fsSL \
+            "https://docs.google.com/spreadsheets/d/1gNO5hjv7R4XUqyVUi2nHk5LtgHOV9ugm/export?format=xlsx" \
+            -o funnel.xlsx
+          echo "Descargado: $(du -h funnel.xlsx | cut -f1)"
+
+      - name: Upload to Supabase
+        run: |
+          PERIODO="2026-04-01_$(date -u +%Y-%m-%d)"
+          echo "Periodo: $PERIODO"
+          python3 LAFA/upload_to_supabase.py funnel.xlsx --periodo "$PERIODO"
