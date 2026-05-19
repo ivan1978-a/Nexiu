@@ -97,18 +97,47 @@ def load_excel(path):
 def upload(records, batch=200):
     total = len(records)
     uploaded = 0
+    skip_fields = set()
+
     for i in range(0, total, batch):
         chunk = records[i:i+batch]
+        if skip_fields:
+            chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
+
         resp = requests.post(
             f"{SUPABASE_URL}/rest/v1/funnel",
             headers=HEADERS,
             json=chunk,
         )
+
+        # If a column doesn't exist yet, strip it and retry this batch
+        if resp.status_code == 400:
+            try:
+                err = resp.json()
+            except Exception:
+                err = {}
+            if err.get('code') == 'PGRST204':
+                import re
+                col = re.search(r"'(\w+)' column", err.get('message', ''))
+                if col:
+                    field = col.group(1)
+                    skip_fields.add(field)
+                    print(f"  ⚠ Columna '{field}' no existe en Supabase, se omitirá hasta que se agregue")
+                    chunk = [{k: v for k, v in r.items() if k not in skip_fields} for r in chunk]
+                    resp = requests.post(
+                        f"{SUPABASE_URL}/rest/v1/funnel",
+                        headers=HEADERS,
+                        json=chunk,
+                    )
+
         if resp.status_code not in (200, 201):
             print(f"  ERROR en batch {i}: {resp.status_code} {resp.text[:200]}")
         else:
             uploaded += len(chunk)
             print(f"  ✓ {uploaded}/{total} registros subidos")
+
+    if skip_fields:
+        print(f"  ℹ Campos omitidos (columna faltante en Supabase): {', '.join(skip_fields)}")
     return uploaded
 
 # ── MAIN ──────────────────────────────────────────────────────────────────────
