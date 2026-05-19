@@ -919,45 +919,55 @@
       });
     }
 
-    // ── WTD CHART ──
-    const xLabels = DOW_SHORT.slice(0, Math.max(todayDow + 1, 1));
-    const weeksForChart = allWeeks.slice(-5);
-    const WK_COLORS = ['#475569','#64748b','#a78bfa','#f59e0b',COLORS.cyan];
+    // ── WTD BAR CHART — X: semanas, Y: presentes acum. hasta día actual ──
+    // todayDow = 0(Lun)…4(Vie); muestra los mismos días en todas las semanas
+    const weeksForChart = allWeeks;
+    const dowLabel = DOW_SHORT.slice(0, todayDow + 1).join(' + ');
+    const BAR_COLORS = weeksForChart.map(w =>
+      w === currentWeek ? COLORS.cyan : 'rgba(99,102,241,0.55)'
+    );
+    const BAR_BORDER = weeksForChart.map(w =>
+      w === currentWeek ? COLORS.cyan : '#6366f1'
+    );
 
-    const wtdDatasets = weeksForChart.map((w, i) => {
+    const wtdBarData = weeksForChart.map(w => {
       const wDates = weekDatesMonFri(w);
       let cum = 0;
-      const data = [];
-      for (let dow = 0; dow < xLabels.length; dow++) {
-        if (w === currentWeek && dow > todayDow) { data.push(null); continue; }
+      for (let dow = 0; dow <= todayDow; dow++) {
         const d = wDates[dow];
-        cum += (d && presentesByDay[d]) ? presentesByDay[d].presentes : 0;
-        data.push(cum);
+        if (d && presentesByDay[d]) cum += presentesByDay[d].presentes;
       }
-      const isCurr = w === currentWeek;
-      return {
-        label: `S${w}${isCurr ? ' (actual)' : ''}`,
-        data,
-        borderColor: isCurr ? COLORS.cyan : WK_COLORS[i % WK_COLORS.length],
-        backgroundColor: 'transparent',
-        borderWidth: isCurr ? 3 : 1.5,
-        pointRadius: isCurr ? 5 : 3,
-        tension: 0.2,
-        borderDash: isCurr ? [] : [5, 3],
-        spanGaps: false,
-      };
+      return cum;
     });
 
     makeChart('wtdChart', {
-      type: 'line',
-      data: { labels: xLabels, datasets: wtdDatasets },
+      type: 'bar',
+      data: {
+        labels: weeksForChart.map(w => `S${w}`),
+        datasets: [{
+          label: `Presentes acum. (${dowLabel})`,
+          data: wtdBarData,
+          backgroundColor: BAR_COLORS,
+          borderColor: BAR_BORDER,
+          borderWidth: 1.5,
+          borderRadius: 4,
+        }]
+      },
       options: {
         plugins: {
-          legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
-          datalabels: { display: false },
-          tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y} presentes acum.` } }
+          legend: { display: false },
+          datalabels: {
+            display: true,
+            anchor: 'end', align: 'end',
+            color: '#e2e8f0', font: { size: 12, weight: '700' },
+            formatter: v => v || ''
+          },
+          tooltip: { callbacks: { label: ctx => ` ${ctx.parsed.y} presentes (${dowLabel})` } }
         },
-        scales: { x:{grid:{display:false}}, y:{grid:{color:'#2e334d'},min:0,ticks:{stepSize:5}} }
+        scales: {
+          x: { grid: { display: false } },
+          y: { grid: { color: '#2e334d' }, min: 0, ticks: { stepSize: 10 } }
+        }
       }
     });
 
